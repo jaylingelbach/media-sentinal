@@ -31,10 +31,31 @@ def get_health(host: str) -> dict | None:
         return None
 
 
+def report_change(name: str, previous: bool | None, current: bool):
+    if previous is None:
+        return
+
+    if previous and not current:
+        print(f"🚨 {name} went OFFLINE")
+
+    elif not previous and current:
+        print(f"✅ {name} recovered")
+
+
+previous_plex = None
+previous_abs = None
+previous_windows = None
+
+
 while True:
     plex = check_port(HOST, PLEX_PORT)
     abs_status = check_port(HOST, ABS_PORT)
     health = get_health(HOST)
+    windows = health is not None
+
+    report_change("Plex", previous_plex, plex)
+    report_change("Audiobookshelf", previous_abs, abs_status)
+    report_change("Windows", previous_windows, windows)
 
     print(f"Plex: {'ONLINE' if plex else 'OFFLINE'}")
     print(f"Audiobookshelf: {'ONLINE' if abs_status else 'OFFLINE'}")
@@ -54,5 +75,9 @@ while True:
         print("Windows health: OFFLINE")
 
     print()
+
+    previous_plex = plex
+    previous_abs = abs_status
+    previous_windows = windows
 
     time.sleep(30)
