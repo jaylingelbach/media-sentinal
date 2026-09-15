@@ -11,6 +11,8 @@ PLEX_PORT = 32400
 ABS_PORT = 13378
 AGENT_PORT = 8765
 
+FAILURE_THRESHOLD = 3
+
 
 def check_port(host: str, port: int) -> bool:
     try:
@@ -47,20 +49,41 @@ def get_health(host: str) -> dict | None:
         return None
 
 
-def report_change(name: str, previous: bool | None, current: bool):
-    if previous is None:
-        return
+def update_state(
+    name: str,
+    current: bool,
+    state: bool | None,
+    failures: int
+) -> tuple[bool, int]:
 
-    if previous and not current:
-        print(f"🚨 {name} went OFFLINE")
+    if current:
+        failures = 0
 
-    elif not previous and current:
-        print(f"✅ {name} recovered")
+        if state is False:
+            print(f"✅ {name} recovered")
+
+        state = True
+
+    else:
+        failures += 1
+
+        if failures >= FAILURE_THRESHOLD and state is not False:
+            print(f"🚨 {name} went OFFLINE")
+            state = False
+
+        elif state is None:
+            state = True
+
+    return state, failures
 
 
-previous_plex = None
-previous_abs = None
-previous_windows = None
+plex_state = None
+abs_state = None
+windows_state = None
+
+plex_failures = 0
+abs_failures = 0
+windows_failures = 0
 
 
 while True:
@@ -69,13 +92,30 @@ while True:
     health = get_health(HOST)
     windows = health is not None
 
-    report_change("Plex", previous_plex, plex)
-    report_change("Audiobookshelf", previous_abs, abs_status)
-    report_change("Windows", previous_windows, windows)
+    plex_state, plex_failures = update_state(
+        "Plex",
+        plex,
+        plex_state,
+        plex_failures
+    )
 
-    print(f"Plex: {'ONLINE' if plex else 'OFFLINE'}")
-    print(f"Audiobookshelf: {'ONLINE' if abs_status else 'OFFLINE'}")
-    print(f"Windows health: {'ONLINE' if windows else 'OFFLINE'}")
+    abs_state, abs_failures = update_state(
+        "Audiobookshelf",
+        abs_status,
+        abs_state,
+        abs_failures
+    )
+
+    windows_state, windows_failures = update_state(
+        "Windows",
+        windows,
+        windows_state,
+        windows_failures
+    )
+
+    print(f"Plex: {'ONLINE' if plex_state else 'OFFLINE'}")
+    print(f"Audiobookshelf: {'ONLINE' if abs_state else 'OFFLINE'}")
+    print(f"Windows health: {'ONLINE' if windows_state else 'OFFLINE'}")
 
     if health:
         print(f"CPU: {health['cpu']}%")
@@ -90,9 +130,5 @@ while True:
         )
 
     print()
-
-    previous_plex = plex
-    previous_abs = abs_status
-    previous_windows = windows
 
     time.sleep(30)
