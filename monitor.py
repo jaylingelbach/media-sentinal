@@ -1,6 +1,7 @@
 import json
 import socket
 import time
+import urllib.error
 import urllib.request
 
 
@@ -25,7 +26,10 @@ def check_plex(host: str) -> bool:
             f"http://{host}:{PLEX_PORT}/",
             timeout=3
         ) as response:
-            return response.status == 200
+            return True
+
+    except urllib.error.HTTPError as error:
+        return error.code in (401, 403)
 
     except (TimeoutError, OSError):
         return False
