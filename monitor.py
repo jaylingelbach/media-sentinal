@@ -13,6 +13,15 @@ AGENT_PORT = 8765
 
 FAILURE_THRESHOLD = 3
 
+LOG_FILE = "logs/events.log"
+
+
+def log_event(message: str) -> None:
+    timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+
+    with open(LOG_FILE, "a") as file:
+        file.write(f"{timestamp} {message}\n")
+
 
 def check_port(host: str, port: int) -> bool:
     try:
@@ -61,6 +70,7 @@ def update_state(
 
         if state is False:
             print(f"✅ {name} recovered")
+            log_event(f"{name} RECOVERED")
 
         state = True
 
@@ -69,6 +79,7 @@ def update_state(
 
         if failures >= FAILURE_THRESHOLD and state is not False:
             print(f"🚨 {name} went OFFLINE")
+            log_event(f"{name} OFFLINE")
             state = False
 
         elif state is None:
