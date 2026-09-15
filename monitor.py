@@ -19,6 +19,18 @@ def check_port(host: str, port: int) -> bool:
         return False
 
 
+def check_plex(host: str) -> bool:
+    try:
+        with urllib.request.urlopen(
+            f"http://{host}:{PLEX_PORT}/",
+            timeout=3
+        ) as response:
+            return response.status == 200
+
+    except (TimeoutError, OSError):
+        return False
+
+
 def get_health(host: str) -> dict | None:
     try:
         with urllib.request.urlopen(
@@ -48,7 +60,7 @@ previous_windows = None
 
 
 while True:
-    plex = check_port(HOST, PLEX_PORT)
+    plex = check_plex(HOST)
     abs_status = check_port(HOST, ABS_PORT)
     health = get_health(HOST)
     windows = health is not None
@@ -59,6 +71,7 @@ while True:
 
     print(f"Plex: {'ONLINE' if plex else 'OFFLINE'}")
     print(f"Audiobookshelf: {'ONLINE' if abs_status else 'OFFLINE'}")
+    print(f"Windows health: {'ONLINE' if windows else 'OFFLINE'}")
 
     if health:
         print(f"CPU: {health['cpu']}%")
@@ -71,8 +84,6 @@ while True:
             f"{uptime['hours']}h "
             f"{uptime['minutes']}m"
         )
-    else:
-        print("Windows health: OFFLINE")
 
     print()
 
