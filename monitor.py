@@ -27,23 +27,42 @@ def check_port(host: str, port: int) -> bool:
     try:
         with socket.create_connection((host, port), timeout=3):
             return True
+
     except (TimeoutError, OSError):
         return False
 
 
-def check_plex(host: str) -> bool:
+def check_plex(host: str) -> tuple[bool, str]:
     try:
         with urllib.request.urlopen(
             f"http://{host}:{PLEX_PORT}/",
             timeout=3
         ) as response:
-            return True
+
+            return True, f"HTTP {response.status}"
 
     except urllib.error.HTTPError as error:
-        return error.code in (401, 403)
+        if error.code in (401, 403):
+            return True, f"HTTP {error.code}"
 
-    except (TimeoutError, OSError):
-        return False
+        return False, f"HTTP {error.code}"
+
+    except urllib.error.URLError as error:
+        reason = error.reason
+
+        if isinstance(reason, TimeoutError):
+            return False, "HTTP timeout"
+
+        if isinstance(reason, ConnectionRefusedError):
+            return False, "connection refused"
+
+        return False, f"network error: {reason}"
+
+    except TimeoutError:
+        return False, "HTTP timeout"
+
+    except OSError as error:
+        return False, f"connection error: {error}"
 
 
 def get_health(host: str) -> dict | None:
@@ -62,7 +81,8 @@ def update_state(
     name: str,
     current: bool,
     state: bool | None,
-    failures: int
+    failures: int,
+    reason: str | None = None
 ) -> tuple[bool, int]:
 
     if current:
@@ -79,7 +99,12 @@ def update_state(
 
         if failures >= FAILURE_THRESHOLD and state is not False:
             print(f"🚨 {name} went OFFLINE")
-            log_event(f"{name} OFFLINE")
+
+            if reason:
+                log_event(f"{name} OFFLINE — {reason}")
+            else:
+                log_event(f"{name} OFFLINE")
+
             state = False
 
         elif state is None:
@@ -98,8 +123,14 @@ windows_failures = 0
 
 
 while True:
-    plex = check_plex(HOST)
+
+    # Plex
+    plex, plex_reason = check_plex(HOST)
+
+    # Audiobookshelf
     abs_status = check_port(HOST, ABS_PORT)
+
+    # Windows health agent
     health = get_health(HOST)
     windows = health is not None
 
@@ -107,7 +138,8 @@ while True:
         "Plex",
         plex,
         plex_state,
-        plex_failures
+        plex_failures,
+        plex_reason
     )
 
     abs_state, abs_failures = update_state(
@@ -134,6 +166,7 @@ while True:
         print(f"Disk: {health['disk']}%")
 
         uptime = health["uptime"]
+
         print(
             f"Uptime: {uptime['days']}d "
             f"{uptime['hours']}h "
