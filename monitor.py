@@ -23,15 +23,6 @@ def log_event(message: str) -> None:
         file.write(f"{timestamp} {message}\n")
 
 
-def check_port(host: str, port: int) -> bool:
-    try:
-        with socket.create_connection((host, port), timeout=3):
-            return True
-
-    except (TimeoutError, OSError):
-        return False
-
-
 def check_plex(host: str) -> tuple[bool, str]:
     try:
         with urllib.request.urlopen(
@@ -46,6 +37,36 @@ def check_plex(host: str) -> tuple[bool, str]:
             return True, f"HTTP {error.code}"
 
         return False, f"HTTP {error.code}"
+
+    except urllib.error.URLError as error:
+        reason = error.reason
+
+        if isinstance(reason, TimeoutError):
+            return False, "HTTP timeout"
+
+        if isinstance(reason, ConnectionRefusedError):
+            return False, "connection refused"
+
+        return False, f"network error: {reason}"
+
+    except TimeoutError:
+        return False, "HTTP timeout"
+
+    except OSError as error:
+        return False, f"connection error: {error}"
+
+
+def check_abs(host: str) -> tuple[bool, str]:
+    try:
+        with urllib.request.urlopen(
+            f"http://{host}:{ABS_PORT}/",
+            timeout=3
+        ) as response:
+
+            return True, f"HTTP {response.status}"
+
+    except urllib.error.HTTPError as error:
+        return True, f"HTTP {error.code}"
 
     except urllib.error.URLError as error:
         reason = error.reason
@@ -128,7 +149,7 @@ while True:
     plex, plex_reason = check_plex(HOST)
 
     # Audiobookshelf
-    abs_status = check_port(HOST, ABS_PORT)
+    abs_status, abs_reason = check_abs(HOST)
 
     # Windows health agent
     health = get_health(HOST)
@@ -146,7 +167,8 @@ while True:
         "Audiobookshelf",
         abs_status,
         abs_state,
-        abs_failures
+        abs_failures,
+        abs_reason
     )
 
     windows_state, windows_failures = update_state(
