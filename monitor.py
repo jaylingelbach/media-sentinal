@@ -1,5 +1,4 @@
 import json
-import socket
 import time
 import urllib.error
 import urllib.request
@@ -104,7 +103,9 @@ def update_state(
     state: bool | None,
     failures: int,
     reason: str | None = None
-) -> tuple[bool, int]:
+) -> tuple[bool, int, str | None]:
+
+    event = None
 
     if current:
         failures = 0
@@ -112,6 +113,7 @@ def update_state(
         if state is False:
             print(f"✅ {name} recovered")
             log_event(f"{name} RECOVERED")
+            event = "RECOVERED"
 
         state = True
 
@@ -127,74 +129,79 @@ def update_state(
                 log_event(f"{name} OFFLINE")
 
             state = False
+            event = "OFFLINE"
 
         elif state is None:
             state = True
 
-    return state, failures
+    return state, failures, event
 
 
-plex_state = None
-abs_state = None
-windows_state = None
+def main() -> None:
+    plex_state = None
+    abs_state = None
+    windows_state = None
 
-plex_failures = 0
-abs_failures = 0
-windows_failures = 0
+    plex_failures = 0
+    abs_failures = 0
+    windows_failures = 0
 
+    while True:
 
-while True:
+        # Plex
+        plex, plex_reason = check_plex(HOST)
 
-    # Plex
-    plex, plex_reason = check_plex(HOST)
+        # Audiobookshelf
+        abs_status, abs_reason = check_abs(HOST)
 
-    # Audiobookshelf
-    abs_status, abs_reason = check_abs(HOST)
+        # Windows health agent
+        health = get_health(HOST)
+        windows = health is not None
 
-    # Windows health agent
-    health = get_health(HOST)
-    windows = health is not None
-
-    plex_state, plex_failures = update_state(
-        "Plex",
-        plex,
-        plex_state,
-        plex_failures,
-        plex_reason
-    )
-
-    abs_state, abs_failures = update_state(
-        "Audiobookshelf",
-        abs_status,
-        abs_state,
-        abs_failures,
-        abs_reason
-    )
-
-    windows_state, windows_failures = update_state(
-        "Windows",
-        windows,
-        windows_state,
-        windows_failures
-    )
-
-    print(f"Plex: {'ONLINE' if plex_state else 'OFFLINE'}")
-    print(f"Audiobookshelf: {'ONLINE' if abs_state else 'OFFLINE'}")
-    print(f"Windows health: {'ONLINE' if windows_state else 'OFFLINE'}")
-
-    if health:
-        print(f"CPU: {health['cpu']}%")
-        print(f"Memory: {health['memory']}%")
-        print(f"Disk: {health['disk']}%")
-
-        uptime = health["uptime"]
-
-        print(
-            f"Uptime: {uptime['days']}d "
-            f"{uptime['hours']}h "
-            f"{uptime['minutes']}m"
+        plex_state, plex_failures, _ = update_state(
+            "Plex",
+            plex,
+            plex_state,
+            plex_failures,
+            plex_reason
         )
 
-    print()
+        abs_state, abs_failures, _ = update_state(
+            "Audiobookshelf",
+            abs_status,
+            abs_state,
+            abs_failures,
+            abs_reason
+        )
 
-    time.sleep(30)
+        windows_state, windows_failures, _ = update_state(
+            "Windows",
+            windows,
+            windows_state,
+            windows_failures
+        )
+
+        print(f"Plex: {'ONLINE' if plex_state else 'OFFLINE'}")
+        print(f"Audiobookshelf: {'ONLINE' if abs_state else 'OFFLINE'}")
+        print(f"Windows health: {'ONLINE' if windows_state else 'OFFLINE'}")
+
+        if health:
+            print(f"CPU: {health['cpu']}%")
+            print(f"Memory: {health['memory']}%")
+            print(f"Disk: {health['disk']}%")
+
+            uptime = health["uptime"]
+
+            print(
+                f"Uptime: {uptime['days']}d "
+                f"{uptime['hours']}h "
+                f"{uptime['minutes']}m"
+            )
+
+        print()
+
+        time.sleep(30)
+
+
+if __name__ == "__main__":
+    main()
