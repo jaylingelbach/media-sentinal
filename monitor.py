@@ -28,7 +28,6 @@ def check_plex(host: str) -> tuple[bool, str]:
             f"http://{host}:{PLEX_PORT}/",
             timeout=3
         ) as response:
-
             return True, f"HTTP {response.status}"
 
     except urllib.error.HTTPError as error:
@@ -61,7 +60,6 @@ def check_abs(host: str) -> tuple[bool, str]:
             f"http://{host}:{ABS_PORT}/",
             timeout=3
         ) as response:
-
             return True, f"HTTP {response.status}"
 
     except urllib.error.HTTPError as error:
@@ -98,11 +96,9 @@ def get_health(host: str) -> dict | None:
 
 
 def update_state(
-    name: str,
     current: bool,
     state: bool | None,
-    failures: int,
-    reason: str | None = None
+    failures: int
 ) -> tuple[bool, int, str | None]:
 
     event = None
@@ -111,8 +107,6 @@ def update_state(
         failures = 0
 
         if state is False:
-            print(f"✅ {name} recovered")
-            log_event(f"{name} RECOVERED")
             event = "RECOVERED"
 
         state = True
@@ -121,13 +115,6 @@ def update_state(
         failures += 1
 
         if failures >= FAILURE_THRESHOLD and state is not False:
-            print(f"🚨 {name} went OFFLINE")
-
-            if reason:
-                log_event(f"{name} OFFLINE — {reason}")
-            else:
-                log_event(f"{name} OFFLINE")
-
             state = False
             event = "OFFLINE"
 
@@ -135,6 +122,25 @@ def update_state(
             state = True
 
     return state, failures, event
+
+
+def handle_event(
+    name: str,
+    event: str | None,
+    reason: str | None = None
+) -> None:
+
+    if event == "OFFLINE":
+        print(f"🚨 {name} went OFFLINE")
+
+        if reason:
+            log_event(f"{name} OFFLINE — {reason}")
+        else:
+            log_event(f"{name} OFFLINE")
+
+    elif event == "RECOVERED":
+        print(f"✅ {name} recovered")
+        log_event(f"{name} RECOVERED")
 
 
 def main() -> None:
@@ -158,27 +164,42 @@ def main() -> None:
         health = get_health(HOST)
         windows = health is not None
 
-        plex_state, plex_failures, _ = update_state(
-            "Plex",
+        # Update Plex state
+        plex_state, plex_failures, plex_event = update_state(
             plex,
             plex_state,
-            plex_failures,
+            plex_failures
+        )
+
+        handle_event(
+            "Plex",
+            plex_event,
             plex_reason
         )
 
-        abs_state, abs_failures, _ = update_state(
-            "Audiobookshelf",
+        # Update Audiobookshelf state
+        abs_state, abs_failures, abs_event = update_state(
             abs_status,
             abs_state,
-            abs_failures,
+            abs_failures
+        )
+
+        handle_event(
+            "Audiobookshelf",
+            abs_event,
             abs_reason
         )
 
-        windows_state, windows_failures, _ = update_state(
-            "Windows",
+        # Update Windows state
+        windows_state, windows_failures, windows_event = update_state(
             windows,
             windows_state,
             windows_failures
+        )
+
+        handle_event(
+            "Windows",
+            windows_event
         )
 
         print(f"Plex: {'ONLINE' if plex_state else 'OFFLINE'}")

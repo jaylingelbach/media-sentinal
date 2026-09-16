@@ -1,61 +1,162 @@
 from monitor import update_state
 
 
-def run_test(name: str, results: list[bool]) -> None:
-    print()
-    print("=" * 50)
-    print(name)
-    print("=" * 50)
-
+def test_three_failures_causes_offline():
     state = None
     failures = 0
 
-    for check_number, current in enumerate(results, start=1):
+    state, failures, event = update_state(
+        True,
+        state,
+        failures
+    )
 
+    assert state is True
+    assert failures == 0
+    assert event is None
+
+    state, failures, event = update_state(
+        False,
+        state,
+        failures
+    )
+
+    assert state is True
+    assert failures == 1
+    assert event is None
+
+    state, failures, event = update_state(
+        False,
+        state,
+        failures
+    )
+
+    assert state is True
+    assert failures == 2
+    assert event is None
+
+    state, failures, event = update_state(
+        False,
+        state,
+        failures
+    )
+
+    assert state is False
+    assert failures == 3
+    assert event == "OFFLINE"
+
+
+def test_recovery_after_offline():
+    state = None
+    failures = 0
+
+    # Start online
+    state, failures, event = update_state(
+        True,
+        state,
+        failures
+    )
+
+    # Three failures
+    for _ in range(3):
         state, failures, event = update_state(
-            "TEST",
-            current,
+            False,
             state,
-            failures,
-            "simulated failure"
+            failures
         )
 
-        print(
-            f"Check {check_number}: "
-            f"{'ONLINE' if current else 'OFFLINE'} "
-            f"→ state={state}, failures={failures}, event={event}"
+    assert state is False
+    assert event == "OFFLINE"
+
+    # Recover
+    state, failures, event = update_state(
+        True,
+        state,
+        failures
+    )
+
+    assert state is True
+    assert failures == 0
+    assert event == "RECOVERED"
+
+
+def test_transient_failure_does_not_cause_offline():
+    state = None
+    failures = 0
+
+    state, failures, event = update_state(
+        True,
+        state,
+        failures
+    )
+
+    # Two failures aren't enough
+    state, failures, event = update_state(
+        False,
+        state,
+        failures
+    )
+
+    state, failures, event = update_state(
+        False,
+        state,
+        failures
+    )
+
+    assert state is True
+    assert failures == 2
+    assert event is None
+
+    # Recovery resets the counter
+    state, failures, event = update_state(
+        True,
+        state,
+        failures
+    )
+
+    assert state is True
+    assert failures == 0
+    assert event is None
+
+
+def test_offline_stays_offline():
+    state = None
+    failures = 0
+
+    state, failures, event = update_state(
+        True,
+        state,
+        failures
+    )
+
+    # Reach offline
+    for _ in range(3):
+        state, failures, event = update_state(
+            False,
+            state,
+            failures
         )
 
+    assert state is False
+    assert event == "OFFLINE"
 
-run_test(
-    "Test 1: Three consecutive failures",
-    [
-        True,
+    # More failures shouldn't create another event
+    state, failures, event = update_state(
         False,
-        False,
-        False,
-    ]
-)
+        state,
+        failures
+    )
 
-
-run_test(
-    "Test 2: Failure followed by recovery",
-    [
-        True,
-        False,
-        False,
-        False,
-        True,
-    ]
-)
+    assert state is False
+    assert failures == 4
+    assert event is None
 
 
-run_test(
-    "Test 3: Failure does not reach threshold",
-    [
-        True,
-        False,
-        False,
-        True,
-    ]
-)
+print("Running Media Sentinel tests...")
+
+test_three_failures_causes_offline()
+test_recovery_after_offline()
+test_transient_failure_does_not_cause_offline()
+test_offline_stays_offline()
+
+print("✅ All tests passed!")
