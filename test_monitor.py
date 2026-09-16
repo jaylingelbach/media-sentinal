@@ -1,4 +1,4 @@
-from monitor import update_state
+from state import update_state
 
 
 def test_three_failures_causes_offline():
@@ -50,14 +50,12 @@ def test_recovery_after_offline():
     state = None
     failures = 0
 
-    # Start online
     state, failures, event = update_state(
         True,
         state,
         failures
     )
 
-    # Three failures
     for _ in range(3):
         state, failures, event = update_state(
             False,
@@ -68,7 +66,6 @@ def test_recovery_after_offline():
     assert state is False
     assert event == "OFFLINE"
 
-    # Recover
     state, failures, event = update_state(
         True,
         state,
@@ -90,7 +87,6 @@ def test_transient_failure_does_not_cause_offline():
         failures
     )
 
-    # Two failures aren't enough
     state, failures, event = update_state(
         False,
         state,
@@ -107,7 +103,6 @@ def test_transient_failure_does_not_cause_offline():
     assert failures == 2
     assert event is None
 
-    # Recovery resets the counter
     state, failures, event = update_state(
         True,
         state,
@@ -129,7 +124,6 @@ def test_offline_stays_offline():
         failures
     )
 
-    # Reach offline
     for _ in range(3):
         state, failures, event = update_state(
             False,
@@ -140,7 +134,6 @@ def test_offline_stays_offline():
     assert state is False
     assert event == "OFFLINE"
 
-    # More failures shouldn't create another event
     state, failures, event = update_state(
         False,
         state,

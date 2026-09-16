@@ -1,16 +1,11 @@
-import json
 import time
-import urllib.error
-import urllib.request
+
+
+from checks import check_plex, check_abs, get_health
+from state import update_state
 
 
 HOST = "Emma-PC"
-
-PLEX_PORT = 32400
-ABS_PORT = 13378
-AGENT_PORT = 8765
-
-FAILURE_THRESHOLD = 3
 
 LOG_FILE = "logs/events.log"
 
@@ -20,108 +15,6 @@ def log_event(message: str) -> None:
 
     with open(LOG_FILE, "a") as file:
         file.write(f"{timestamp} {message}\n")
-
-
-def check_plex(host: str) -> tuple[bool, str]:
-    try:
-        with urllib.request.urlopen(
-            f"http://{host}:{PLEX_PORT}/",
-            timeout=3
-        ) as response:
-            return True, f"HTTP {response.status}"
-
-    except urllib.error.HTTPError as error:
-        if error.code in (401, 403):
-            return True, f"HTTP {error.code}"
-
-        return False, f"HTTP {error.code}"
-
-    except urllib.error.URLError as error:
-        reason = error.reason
-
-        if isinstance(reason, TimeoutError):
-            return False, "HTTP timeout"
-
-        if isinstance(reason, ConnectionRefusedError):
-            return False, "connection refused"
-
-        return False, f"network error: {reason}"
-
-    except TimeoutError:
-        return False, "HTTP timeout"
-
-    except OSError as error:
-        return False, f"connection error: {error}"
-
-
-def check_abs(host: str) -> tuple[bool, str]:
-    try:
-        with urllib.request.urlopen(
-            f"http://{host}:{ABS_PORT}/",
-            timeout=3
-        ) as response:
-            return True, f"HTTP {response.status}"
-
-    except urllib.error.HTTPError as error:
-        return True, f"HTTP {error.code}"
-
-    except urllib.error.URLError as error:
-        reason = error.reason
-
-        if isinstance(reason, TimeoutError):
-            return False, "HTTP timeout"
-
-        if isinstance(reason, ConnectionRefusedError):
-            return False, "connection refused"
-
-        return False, f"network error: {reason}"
-
-    except TimeoutError:
-        return False, "HTTP timeout"
-
-    except OSError as error:
-        return False, f"connection error: {error}"
-
-
-def get_health(host: str) -> dict | None:
-    try:
-        with urllib.request.urlopen(
-            f"http://{host}:{AGENT_PORT}/",
-            timeout=3
-        ) as response:
-            return json.loads(response.read())
-
-    except (TimeoutError, OSError, json.JSONDecodeError):
-        return None
-
-
-def update_state(
-    current: bool,
-    state: bool | None,
-    failures: int
-) -> tuple[bool, int, str | None]:
-
-    event = None
-
-    if current:
-        failures = 0
-
-        if state is False:
-            event = "RECOVERED"
-
-        state = True
-
-    else:
-        failures += 1
-
-        if failures >= FAILURE_THRESHOLD and state is not False:
-            state = False
-            event = "OFFLINE"
-
-        elif state is None:
-            state = True
-
-    return state, failures, event
 
 
 def handle_event(
