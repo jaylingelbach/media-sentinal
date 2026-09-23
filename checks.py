@@ -2,8 +2,6 @@ import json
 import urllib.error
 import urllib.request
 
-# Talk to Emma-PC and find out what's happening.
-# No state tracking. No logging. No infinite loop.
 
 PLEX_PORT = 32400
 ABS_PORT = 13378
@@ -71,13 +69,35 @@ def check_abs(host: str) -> tuple[bool, str]:
         return False, f"connection error: {error}"
 
 
-def get_health(host: str) -> dict | None:
+def get_health(host: str) -> tuple[dict | None, str]:
     try:
         with urllib.request.urlopen(
             f"http://{host}:{AGENT_PORT}/",
             timeout=3
         ) as response:
-            return json.loads(response.read())
+            health = json.loads(response.read())
 
-    except (TimeoutError, OSError, json.JSONDecodeError):
-        return None
+            return health, f"HTTP {response.status}"
+
+    except urllib.error.HTTPError as error:
+        return None, f"HTTP {error.code}"
+
+    except urllib.error.URLError as error:
+        reason = error.reason
+
+        if isinstance(reason, TimeoutError):
+            return None, "HTTP timeout"
+
+        if isinstance(reason, ConnectionRefusedError):
+            return None, "connection refused"
+
+        return None, f"network error: {reason}"
+
+    except TimeoutError:
+        return None, "HTTP timeout"
+
+    except json.JSONDecodeError:
+        return None, "invalid JSON response"
+
+    except OSError as error:
+        return None, f"connection error: {error}"

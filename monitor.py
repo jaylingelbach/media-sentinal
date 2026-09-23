@@ -39,11 +39,11 @@ def handle_event(
 def main() -> None:
     plex_state = None
     abs_state = None
-    windows_state = None
+    windows_agent_state = None
 
     plex_failures = 0
     abs_failures = 0
-    windows_failures = 0
+    windows_agent_failures = 0
 
     while True:
 
@@ -54,8 +54,8 @@ def main() -> None:
         abs_status, abs_reason = check_abs(HOST)
 
         # Windows health agent
-        health = get_health(HOST)
-        windows = health is not None
+        health, health_reason = get_health(HOST)
+        windows_agent = health is not None
 
         # Update Plex state
         plex_state, plex_failures, plex_event = update_state(
@@ -83,21 +83,30 @@ def main() -> None:
             abs_reason
         )
 
-        # Update Windows state
-        windows_state, windows_failures, windows_event = update_state(
-            windows,
-            windows_state,
-            windows_failures
+        # Update Windows Agent state
+        windows_agent_state, windows_agent_failures, windows_agent_event = (
+            update_state(
+                windows_agent,
+                windows_agent_state,
+                windows_agent_failures
+            )
         )
 
         handle_event(
-            "Windows",
-            windows_event
+            "Windows Agent",
+            windows_agent_event,
+            health_reason
         )
 
         print(f"Plex: {'ONLINE' if plex_state else 'OFFLINE'}")
-        print(f"Audiobookshelf: {'ONLINE' if abs_state else 'OFFLINE'}")
-        print(f"Windows health: {'ONLINE' if windows_state else 'OFFLINE'}")
+        print(
+            f"Audiobookshelf: "
+            f"{'ONLINE' if abs_state else 'OFFLINE'}"
+        )
+        print(
+            f"Windows Agent: "
+            f"{'ONLINE' if windows_agent_state else 'OFFLINE'}"
+        )
 
         if health:
             print(f"CPU: {health['cpu']}%")
