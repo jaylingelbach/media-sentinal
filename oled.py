@@ -145,6 +145,9 @@ class SSD1306:
         plex,
         abs_status,
         windows_agent,
+        cpu=None,
+        memory=None,
+        disk=None,
     ):
         self.clear()
 
@@ -154,10 +157,37 @@ class SSD1306:
 
             return "ONLINE" if value else "OFFLINE"
 
-        self.draw_text(0, 0, "MEDIA SENTINEL")
-        self.draw_text(0, 16, f"Plex: {status_text(plex)}")
-        self.draw_text(0, 28, f"ABS: {status_text(abs_status)}")
-        self.draw_text(0, 40, f"Agent: {status_text(windows_agent)}")
+        self.draw_text(
+            0,
+            0,
+            f"Plex: {status_text(plex)}"
+        )
+
+        self.draw_text(
+            0,
+            12,
+            f"ABS: {status_text(abs_status)}"
+        )
+
+        self.draw_text(
+            0,
+            24,
+            f"Agent: {status_text(windows_agent)}"
+        )
+
+        if cpu is not None and memory is not None:
+            self.draw_text(
+                0,
+                40,
+                f"CPU:{cpu:.0f}%  RAM:{memory:.0f}%"
+            )
+
+        if disk is not None:
+            self.draw_text(
+                0,
+                52,
+                f"Disk:{disk:.0f}%"
+            )
 
         self.show()
 

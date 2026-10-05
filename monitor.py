@@ -1,6 +1,5 @@
 import time
 
-
 from checks import check_plex, check_abs, get_health
 from state import update_state
 from oled import SSD1306
@@ -129,6 +128,9 @@ def main() -> None:
             plex_state,
             abs_state,
             windows_agent_state,
+            health["cpu"] if health else None,
+            health["memory"] if health else None,
+            health["disk"] if health else None,
         )
 
         print()
