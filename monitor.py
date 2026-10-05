@@ -3,6 +3,7 @@ import time
 
 from checks import check_plex, check_abs, get_health
 from state import update_state
+from oled import SSD1306
 
 
 HOST = "Emma-PC"
@@ -37,6 +38,8 @@ def handle_event(
 
 
 def main() -> None:
+    oled = SSD1306()
+    
     plex_state = None
     abs_state = None
     windows_agent_state = None
