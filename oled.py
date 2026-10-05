@@ -140,6 +140,26 @@ class SSD1306:
             self.draw_char(cursor_x, y, char)
             cursor_x += 6
 
+    def show_status(
+        self,
+        plex,
+        abs_status,
+        windows_agent,
+    ):
+        self.clear()
+
+        def status_text(value):
+            if value is None:
+                return "CHECKING"
+
+            return "ONLINE" if value else "OFFLINE"
+
+        self.draw_text(0, 0, "MEDIA SENTINEL")
+        self.draw_text(0, 16, f"Plex: {status_text(plex)}")
+        self.draw_text(0, 28, f"ABS: {status_text(abs_status)}")
+        self.draw_text(0, 40, f"Agent: {status_text(windows_agent)}")
+
+        self.show()
 
     def show(self):
         self.command(COLUMN_ADDR)
