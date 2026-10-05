@@ -140,56 +140,6 @@ class SSD1306:
             self.draw_char(cursor_x, y, char)
             cursor_x += 6
 
-    def show_status(
-        self,
-        plex,
-        abs_status,
-        windows_agent,
-        cpu=None,
-        memory=None,
-        disk=None,
-    ):
-        self.clear()
-
-        def status_text(value):
-            if value is None:
-                return "CHECKING"
-
-            return "ONLINE" if value else "OFFLINE"
-
-        self.draw_text(
-            0,
-            0,
-            f"Plex: {status_text(plex)}"
-        )
-
-        self.draw_text(
-            0,
-            12,
-            f"ABS: {status_text(abs_status)}"
-        )
-
-        self.draw_text(
-            0,
-            24,
-            f"Agent: {status_text(windows_agent)}"
-        )
-
-        if cpu is not None and memory is not None:
-            self.draw_text(
-                0,
-                40,
-                f"CPU:{cpu:.0f}%  RAM:{memory:.0f}%"
-            )
-
-        if disk is not None:
-            self.draw_text(
-                0,
-                52,
-                f"Disk:{disk:.0f}%"
-            )
-
-        self.show()
 
     def show(self):
         self.command(COLUMN_ADDR)
