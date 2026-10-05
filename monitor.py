@@ -39,7 +39,7 @@ def handle_event(
 
 def main() -> None:
     oled = SSD1306()
-    
+
     plex_state = None
     abs_state = None
     windows_agent_state = None
@@ -123,6 +123,13 @@ def main() -> None:
                 f"{uptime['hours']}h "
                 f"{uptime['minutes']}m"
             )
+
+        # Update OLED
+        oled.show_status(
+            plex_state,
+            abs_state,
+            windows_agent_state,
+        )
 
         print()
 
